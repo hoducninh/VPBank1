@@ -1,0 +1,112 @@
+---
+title: "Analyzing Customer Basket for VP Bank"
+author: "Anh Hoang Duc - BICC"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(arules)
+library(arulesViz)
+library(visNetwork)
+library(igraph)
+library(dplyr)
+library(DT)
+
+#PHẦN A: XỬ LÝ DỮ LIỆU
+
+###########################
+
+#Bước 1: Tạo rules
+rules <- apriori(Transaction, parameter=list(support=sup, confidence=conf, minlen = 2))
+subset.matrix <- is.subset(rules, rules)
+subset.matrix[lower.tri(subset.matrix, diag=T)] <- NA
+redundant <- colSums(subset.matrix, na.rm=T) >= 1
+rules.pruned <- rules[!redundant]
+subrules2 <- sort(rules.pruned, by="lift")
+
+#Bước 2.1: Tạo object plot
+ig <- plot( subrules2, method="graph", control=list(type="items"))
+
+#Bước 2.2: Convert ra data frame
+ig_df <- get.data.frame(ig, what = "both")
+
+##################
+
+#Bước 3: Data Manipulation
+
+#Bước 3.1: Đếm số rules
+no.of.rules <- dim(subrules2@quality)[1]
+#Bước 3.2: Đếm số quan sát trong object igraph
+no.of.obs <- length(ig_df$vertices$confidence)
+
+#Bước 3.3 Tạo data frame cho visNetwork
+
+#Bước 3.3.1: Tạo object data.frame của nodes và edges
+
+edges = ig_df$edges
+
+##################
+
+nodes = data.frame(
+  id = ig_df$vertices$name
+  ,label = ifelse(ig_df$vertices$label == "","", ig_df$vertices$label))
+
+#LƯU Ý: Object của IG_DF bị lệch 1 quan sát, do đó cần điều chỉnh lại để 
+#data frame nodes chính xác
+
+#Các bước nhỏ
+#Tạo vector confidence theo chuẩn apriori
+value.confidence <- c(NA,ig_df$vertices$confidence[-no.of.obs])
+#Tạo vector support chuẩn theo apriori
+value.support <- c(NA,ig_df$vertices$support[-no.of.obs])
+#Tạo vector lift chuẩn theo apriori
+value.lift <- c(NA,ig_df$vertices$lift[-no.of.obs])
+
+#Tạo màu cho các nodes
+nodes$color[(no.of.obs - no.of.rules +1):no.of.obs] <- "red"
+#nodes$color[1:(no.of.obs - no.of.rules)] <- "rgb(11,142,82)"
+nodes$value <- value.lift
+#Tạo title khi hover
+nodes$title <- paste0(
+  "Support:", round(value.support * 100,3), "%", "\n",                        "Confidence:", round(value.confidence * 100, 3),"%","\n",                   "Lift:", round(value.lift, 3))
+```
+
+Column {.tabset data-width=1000}
+-----------------------------------------------------------------------
+
+### Association Rules
+
+```{r}
+visNetwork(nodes, edges, height = "100%", width = "100%",
+           main = "Frequent patterns in general") %>% 
+  visEdges(arrows = "to") %>% 
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>% 
+  visExport()
+#%>% visHierarchicalLayout(direction = "UD") #Create layout
+
+```
+
+### Summary Rules
+
+```{r}
+subrules2 %>% summary
+```
+
+
+Column {.tabset data-width=700}
+-----------------------------------------
+### Rules in Detail
+
+```{r}
+ruledf <- as(subrules2, "data.frame")
+datatable(ruledf, rownames = F,
+          caption = "Association Rules in Detail",
+          extensions = "AutoFill", options = list(autoFill = TRUE)) %>% 
+ formatPercentage(c(2,3),3) %>% 
+ formatRound(c(4),3)
+```
+

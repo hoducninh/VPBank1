@@ -1,0 +1,12 @@
+Package: VPBank
+Title: Basket Analysis with Shiny App for VP Bank (one line, title case)
+Version: 0.1
+Authors@R: person("Anh", "Hoang Duc", email = "hoangducanh89@gmail.com", role = c("aut", "cre"))
+Description: VPBank package provides a convinient way to explore customers'
+    behavior using basket analysis with Shiny. This package is especially created
+    for Data Analysts in Business Intelligence Competency Center (BICC) - VP Bank
+Depends:
+    R (>= 3.2.5), shiny, arulesViz, arules, DT, igraph, dplyr, reshape2, foreach, doParallel, stringr
+License: What license is it under?
+LazyData: true
+RoxygenNote: 5.0.1.9000
